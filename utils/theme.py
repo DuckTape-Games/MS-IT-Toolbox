@@ -14,6 +14,7 @@ white = "#ffffff"
 #Fonts
 font_main = ("Segoe UI", 10)
 font_label = ("Segoe UI", 11)
+button_label = ("Segoe UI", 11, "bold")
 font_section = ("Segoe UI", 14, "bold")
 font_header = ("Segoe UI", 24, "bold")
 font_subheader = ("Segoe UI", 12)
@@ -22,3 +23,6 @@ font_subheader = ("Segoe UI", 12)
 short_logo = resource_path("assets/mslogo_short.png")
 long_logo = resource_path("assets/mslogo_long.png")
 app_icon = resource_path("assets/mslogo.ico")
+
+#Other UI graphics
+back_arrow = resource_path("assets/back_arrow.png")
