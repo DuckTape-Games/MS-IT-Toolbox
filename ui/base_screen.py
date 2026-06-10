@@ -6,6 +6,10 @@ import tkinter as tk #UI
 from utils import theme #Gets the application theme items
 
 
+###########################################################
+### Creates the Base Screen Used By The Rest if the App ###
+###########################################################
+
 def create_screen_base(root):
     body = tk.Frame(root, bg=theme.light_gray_background, pady=10)
     root.grid_rowconfigure(2, weight=1)

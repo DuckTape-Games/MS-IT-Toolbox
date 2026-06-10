@@ -1,12 +1,20 @@
 '''
 Creates App Header
 '''
-#Imports
+###############
+### Imports ###
+###############
+
 import tkinter as tk #UI
 from utils import theme, helpers #Theme gets the application theme items and helpers gets the helper methods that the project uses
 from PIL import Image, ImageTk #Used for resizing images
 
-#Creates the header
+
+
+##########################
+### Creates the header ###
+##########################
+
 def create_header(header):
     head = tk.Frame(header, bg=theme.white, pady=10, height=95)
 
@@ -23,7 +31,11 @@ def create_header(header):
     return head
 
 
-#Adds the logo onto the screen
+
+#####################################
+### Adds the logo onto the screen ###
+#####################################
+
 def add_image(header, image, height=None, xcor=None, ycor=None, bgcolor=theme.white):
     #Load image
     logo = Image.open(image).convert("RGBA")
@@ -49,8 +61,11 @@ def add_image(header, image, height=None, xcor=None, ycor=None, bgcolor=theme.wh
         logo_label.place(x=xcor, y=ycor)
 
 
-    
-#Creates a back button for when the user is not on the home screen
+
+#########################################################################
+### Creates a back button for when the user is not on the home screen ###
+#########################################################################
+
 def add_back_button(header,body, create_home):
     # Loads the transparent PNG as an actual Tkinter image
     back_arrow = Image.open(theme.back_arrow).convert("RGBA")
