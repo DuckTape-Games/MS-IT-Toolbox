@@ -2,6 +2,10 @@
 Theme for M+S IT Acquisition Toolbox
 '''
 
+###############
+### Imports ###
+###############
+
 from utils.helpers import resource_path
 
 #M+S Color Scheme

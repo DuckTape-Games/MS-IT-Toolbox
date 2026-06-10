@@ -5,7 +5,6 @@ Helper methods for M+S IT Acquisition Toolbox
 import os, sys #Used for managing system
 from pathlib import Path #Used for finding path to users
 import tkinter as tk #Used for the GUI
-from PIL import Image, ImageTk #Used for resizing images
 
 
 
@@ -95,3 +94,20 @@ def get_windows_users():
 
     # Sends the final list of user folders back to wherever the function was called
     return users
+
+
+
+###############################################
+### Returns a List of Folders Within a User ###
+###############################################
+
+def get_user_folders(username):
+    user_path = Path("C:/Users") / username
+    try:
+        return [
+            folder.name
+            for folder in user_path.iterdir()
+            if folder.is_dir()
+        ]
+    except:
+        return []
