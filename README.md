@@ -39,31 +39,7 @@ The tool is designed to help improve internal IT workflows, especially tasks rel
 - Robocopy
 - PyInstaller
 
-## Project Structure
-
-```text
-M+S IT Acquisition Toolbox/
-│
-├── main.py
-│
-├── assets/
-│   ├── mslogo.ico
-│   └── mslogo_long.png
-│
-├── ui/
-│   ├── __init__.py
-│   ├── header.py
-│   └── home.py
-│
-├── utils/
-│   ├── __init__.py
-│   ├── helpers.py
-│   └── theme.py
-│
-└── README.md
-```
-
-Development Notes
+## Development Notes
 
 This project is being built in stages.
 
@@ -75,4 +51,4 @@ Status
 
 In development.
 
-Current focus: building the basic UI and preparing the first user data copy feature.
+Current focus: building the basic UI and Starting Robocopy Functionality
