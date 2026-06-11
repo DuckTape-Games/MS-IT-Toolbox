@@ -18,7 +18,7 @@ white = "#ffffff"
 #Fonts
 font_main = ("Segoe UI", 10)
 font_label = ("Segoe UI", 11)
-button_label = ("Segoe UI", 11, "bold")
+font_button = ("Segoe UI", 11, "bold")
 font_section = ("Segoe UI", 14, "bold")
 font_header = ("Segoe UI", 24, "bold")
 font_subheader = ("Segoe UI", 12)

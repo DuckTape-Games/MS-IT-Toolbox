@@ -19,11 +19,12 @@ def create_home(body, head, back_button=None):
     helpers.clear_frame(body)
     if back_button != None:
         back_button.destroy()
+        
     robocopy_button = tk.Button(
         body, 
         text="Robocopy", 
         relief="raised", 
-        font=theme.button_label, 
+        font=theme.font_button, 
         fg=theme.dark_blue, 
         bg=theme.white, 
         height=4, 
