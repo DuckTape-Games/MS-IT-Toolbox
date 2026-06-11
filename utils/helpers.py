@@ -111,3 +111,42 @@ def get_user_folders(username):
         ]
     except:
         return []
+    
+
+
+###################################################
+### Get All Unique Extensions for User Profiles ###
+###################################################
+
+def get_unique_extensions(username, folder_vars):
+    """
+    Scans the paths of checked folders for a specific Windows user profile.
+    Safely ignores system locks, permissions, and hidden/system files.
+    """
+    unique_extensions = set()
+    base_user_path = Path("C:/Users") / username
+    
+    # Filter the dictionary to only grab folders that the tech checked
+    selected_folder_names = [
+        folder_name for folder_name, var in folder_vars.items() if var.get()
+    ]
+    
+    for folder_name in selected_folder_names:
+        target_folder = base_user_path / folder_name
+        
+        if not target_folder.exists():
+            continue
+            
+        # Walk recursively through the checked folder
+        for file_path in target_folder.rglob("*"):
+            try:
+                if file_path.is_file():
+                    ext = file_path.suffix.lower()
+                    # Skip empty extensions or standalone periods
+                    if ext and ext != ".":
+                        unique_extensions.add(ext)
+            except (PermissionError, FileNotFoundError):
+                # Safely ignore locked AppData items or hidden NTUSER files
+                continue
+                
+    return sorted(list(unique_extensions))
