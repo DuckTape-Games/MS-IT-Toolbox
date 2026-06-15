@@ -7,9 +7,11 @@ Robocopy execution logic for the M+S IT Acquisition Toolbox
 ###############
 
 import subprocess  # Opens the editable batch file in Command Prompt
-import sys  # Detects whether the application is running from PyInstaller
+import sys  # Locates files beside a packaged executable when needed
 from datetime import datetime  # Creates timestamped copy folders and log files
 from pathlib import Path  # Creates and validates Windows folder paths
+
+from utils import helpers  # Locates bundled files in development and packaged builds
 
 
 ################################
@@ -25,16 +27,37 @@ ROBOCOPY_SUCCESS_LIMIT = 8
 ########################################
 
 def _get_batch_file_path():
-    """Returns the editable batch file beside the source project or executable."""
-    # Packaged builds look beside the generated executable
-    if getattr(sys, "frozen", False):
-        application_folder = Path(sys.executable).resolve().parent
-    else:
-        # Development mode looks in the project root above the services folder
-        application_folder = Path(__file__).resolve().parents[1]
+    """Returns the Robocopy batch file in source and packaged applications."""
+    # resource_path handles the project root and PyInstaller's temporary _MEIPASS folder
+    bundled_script = Path(
+        helpers.resource_path("scripts/run_robocopy.bat")
+    )
 
-    # Returns the expected location of the editable Robocopy script
-    return application_folder / "scripts" / "run_robocopy.bat"
+    # Uses the correctly bundled scripts folder whenever it exists
+    if bundled_script.exists():
+        return bundled_script
+
+    # Supports builds where Auto Py to Exe placed the file at the bundle root
+    bundled_root_script = Path(
+        helpers.resource_path("run_robocopy.bat")
+    )
+    if bundled_root_script.exists():
+        return bundled_root_script
+
+    # Supports an editable scripts folder stored beside the generated executable
+    if getattr(sys, "frozen", False):
+        executable_folder = Path(sys.executable).resolve().parent
+
+        external_script = executable_folder / "scripts" / "run_robocopy.bat"
+        if external_script.exists():
+            return external_script
+
+        external_root_script = executable_folder / "run_robocopy.bat"
+        if external_root_script.exists():
+            return external_root_script
+
+    # Returns the intended resource path so any error message shows the proper location
+    return bundled_script
 
 
 # Stores the batch-file path once so every copy operation can reuse it
@@ -147,7 +170,9 @@ def run_robocopy(username, selected_folders, excluded_extensions):
     # Stops if the editable batch file is missing from the scripts folder
     if not batch_file.exists():
         raise FileNotFoundError(
-            f"The Robocopy batch file could not be found: {batch_file}"
+            "The Robocopy batch file could not be found. "
+            "Add scripts/run_robocopy.bat to Auto Py to Exe with the destination "
+            f"folder set to scripts. Expected path: {batch_file}"
         )
 
     # Creates the main destination and shared log folder before copying

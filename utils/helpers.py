@@ -6,7 +6,6 @@ Helper methods for M+S IT Acquisition Toolbox
 ### Imports ###
 ###############
 
-import os  # Creates and combines file-system paths
 import sys  # Detects PyInstaller's temporary resource folder
 from pathlib import Path  # Provides Windows user and folder path handling
 
@@ -17,15 +16,15 @@ from pathlib import Path  # Provides Windows user and folder path handling
 
 def resource_path(relative_path):
     """Gets an absolute resource path in development and PyInstaller builds."""
-    try:
-        # PyInstaller creates a temporary folder and stores its path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        # Development mode uses the current project directory
-        base_path = os.path.abspath(".")
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        # PyInstaller stores bundled assets inside its runtime resource directory
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Development mode uses the project root instead of the current terminal folder
+        base_path = Path(__file__).resolve().parents[1]
 
     # Combines the application directory with the requested relative resource path
-    return os.path.join(base_path, relative_path)
+    return str(base_path / relative_path)
 
 
 ########################
