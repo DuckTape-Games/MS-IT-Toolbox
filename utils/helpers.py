@@ -1,100 +1,118 @@
 '''
 Helper methods for M+S IT Acquisition Toolbox
 '''
-#Imports
-import os, sys #Used for managing system
-from pathlib import Path #Used for finding path to users
-import tkinter as tk #Used for the GUI
 
+###############
+### Imports ###
+###############
+
+import os  # Creates and combines file-system paths
+import sys  # Detects PyInstaller's temporary resource folder
+from pathlib import Path  # Provides Windows user and folder path handling
 
 
 ##############################################
-### Makes onefile mode work in pyinstaller ###
+### Makes Onefile Mode Work in PyInstaller ###
 ##############################################
 
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """Gets an absolute resource path in development and PyInstaller builds."""
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        # PyInstaller creates a temporary folder and stores its path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
+        # Development mode uses the current project directory
         base_path = os.path.abspath(".")
+
+    # Combines the application directory with the requested relative resource path
     return os.path.join(base_path, relative_path)
 
 
-
 ########################
-### Resizes an image ###
+### Resizes an Image ###
 ########################
 
 def resize_image(image, new_width=None, new_height=None):
     """
-    If neither dimensions are given, original image will be returned
-    If both width AND height are given, image will be stretched to fit the new dimensions
-    If only width OR height is given, image will be resized with the same ratio
+    If neither dimension is given, the original image is returned.
+    If both dimensions are given, the image is stretched to fit them.
+    If only one dimension is given, the original aspect ratio is preserved.
     """
+    # Reads the source image dimensions for ratio calculations
     original_width, original_height = image.size
 
-    #Just image is given
+    # Returns the original image when no new size is requested
     if not new_width and not new_height:
-        return image #Skips the rest of the function by returning the original image
-    
-    #Just width is given
+        return image
+
+    # Calculates the matching height when only a width is given
     if new_width and not new_height:
         ratio = new_width / original_width
         new_height = int(original_height * ratio)
 
-    #Just height is given
+    # Calculates the matching width when only a height is given
     elif new_height and not new_width:
         ratio = new_height / original_height
         new_width = int(original_width * ratio)
 
-    #Returns the resized image with the new ratios
+    # Returns the resized image with the calculated dimensions
     return image.resize((new_width, new_height))
 
 
-
 ######################
-### Clears a frame ###
+### Clears a Frame ###
 ######################
 
 def clear_frame(frame):
-    #Loops through every widget on a frame and removes it
+    # Loops through every widget in a frame and removes it
     for widget in frame.winfo_children():
         widget.destroy()
 
 
-
 ############################################################
-### Creates a list of user profile folders from C:/Users ###
+### Creates a List of User Profile Folders from C:/Users ###
 ############################################################
 
 def get_windows_users():
-    # Stores the path where Windows user profiles are usually located
+    # Stores the standard Windows user-profile location
     users_path = Path("C:/Users")
 
-    # Folders/files that should not appear in the user dropdown
+    # Lists system and shared folders that should not appear in the dropdown
     ignored_users = {
         "Public",
         "Default",
         "Default User",
         "All Users",
-        "desktop.ini"
+        "desktop.ini",
     }
 
-    # Empty list that will store valid user profile names
+    # Stores valid user profile names
     users = []
 
-    # Loops through everything inside C:/Users
+    # Checks each item inside C:/Users
     for item in users_path.iterdir():
-
-        # Only adds the item if it is a folder and not in the ignored list
+        # Adds only folders that are not part of the ignored list
         if item.is_dir() and item.name not in ignored_users:
             users.append(item.name)
 
-    # Sends the final list of user folders back to wherever the function was called
+    # Returns the completed user list to the user dropdown
     return users
 
+
+#####################################################
+### Checks for Previously Generated Copy Folders ###
+#####################################################
+
+def is_generated_copy_folder(folder_name, username):
+    """Checks whether a folder was created by the acquisition copy tool."""
+    # Builds the current copy-folder prefix for the selected user
+    current_prefix = f"MS {username} Copy "
+
+    # Supports both the current folder name and the older project folder name
+    return (
+        folder_name.startswith(current_prefix)
+        or folder_name.startswith("M+S Acquisition Copy ")
+    )
 
 
 ###############################################
@@ -102,51 +120,65 @@ def get_windows_users():
 ###############################################
 
 def get_user_folders(username):
+    # Builds the full path to the selected Windows user profile
     user_path = Path("C:/Users") / username
+
     try:
+        # Returns only top-level folders that were not generated by this tool
         return [
             folder.name
             for folder in user_path.iterdir()
             if folder.is_dir()
+            and not is_generated_copy_folder(folder.name, username)
         ]
-    except:
+    except (FileNotFoundError, PermissionError, OSError):
+        # Returns an empty list when the profile cannot be found or accessed
         return []
-    
 
 
 ###################################################
-### Get All Unique Extensions for User Profiles ###
+### Gets All Unique Extensions for User Profiles ###
 ###################################################
 
 def get_unique_extensions(username, folder_vars):
     """
-    Scans the paths of checked folders for a specific Windows user profile.
-    Safely ignores system locks, permissions, and hidden/system files.
+    Scans checked folders in a Windows user profile.
+    Locked, missing, or inaccessible files are skipped.
     """
+    # Uses a set so repeated extensions are only stored once
     unique_extensions = set()
+
+    # Builds the base path for the selected Windows user profile
     base_user_path = Path("C:/Users") / username
-    
-    # Filter the dictionary to only grab folders that the tech checked
+
+    # Collects the folder names whose checkboxes are currently selected
     selected_folder_names = [
-        folder_name for folder_name, var in folder_vars.items() if var.get()
+        folder_name
+        for folder_name, variable in folder_vars.items()
+        if variable.get()
     ]
-    
+
+    # Scans each selected top-level folder separately
     for folder_name in selected_folder_names:
         target_folder = base_user_path / folder_name
-        
+
+        # Skips folders that no longer exist after the checkboxes were created
         if not target_folder.exists():
             continue
-            
-        # Walk recursively through the checked folder
+
+        # Walks recursively through every path inside the selected folder
         for file_path in target_folder.rglob("*"):
             try:
+                # Only files can contribute an extension to the results
                 if file_path.is_file():
-                    ext = file_path.suffix.lower()
-                    # Skip empty extensions or standalone periods
-                    if ext and ext != ".":
-                        unique_extensions.add(ext)
+                    extension = file_path.suffix.lower()
+
+                    # Ignores files with no extension or only a standalone period
+                    if extension and extension != ".":
+                        unique_extensions.add(extension)
             except (PermissionError, FileNotFoundError):
-                # Safely ignore locked AppData items or hidden NTUSER files
+                # Skips locked or removed files without ending the complete scan
                 continue
-                
-    return sorted(list(unique_extensions))
+
+    # Returns the extensions in a predictable alphabetical order
+    return sorted(unique_extensions)

@@ -1,1 +1,3 @@
-"""Service modules for the M+S IT Acquisition Toolbox."""
+'''
+Service package for the M+S IT Acquisition Toolbox
+'''
