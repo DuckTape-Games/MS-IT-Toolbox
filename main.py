@@ -35,7 +35,7 @@ from ui import header, base_screen as base, home #Creates the application header
 root = tk.Tk()
 root.title("M+S IT Acquisition Toolbox")
 root.iconbitmap(theme.app_icon)
-root.geometry("1200x700")
+root.geometry("1500x700")
 
 
 ################################################
@@ -54,4 +54,14 @@ DEVELOPERS:
 
 -> Chris Herriman Jr (ISD Intern)
 
+'''
+
+
+'''
+Next steps:
+1. Wire Scan Selected Folders button to scan checked folders.
+2. Keep .exe, .msi, .bat, .zip visible on main page.
+3. Store all found extensions in extension_vars.
+4. Build popup for all file types with scrollbar.
+5. Later convert unchecked extensions into /XF arguments.
 '''
