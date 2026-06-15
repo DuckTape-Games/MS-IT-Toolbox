@@ -1,0 +1,18 @@
+AUTO PY TO EXE BATCH FILE SETUP
+================================
+
+In Auto Py to Exe, open Additional Files and add:
+
+Source: scripts\run_robocopy.bat
+Destination: scripts
+
+The packaged path must remain:
+
+scripts\run_robocopy.bat
+
+The application now searches the PyInstaller resource folder first by using:
+
+helpers.resource_path("scripts/run_robocopy.bat")
+
+It also supports the batch file beside the EXE as a fallback, but the scripts
+destination is the recommended Auto Py to Exe configuration.
