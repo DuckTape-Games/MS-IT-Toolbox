@@ -1,54 +1,171 @@
 # M+S IT Acquisition Toolbox
 
-M+S IT Acquisition Toolbox is a Python/Tkinter desktop utility built to support internal IT workflows at Marshall+Sterling.
+A Windows desktop application designed to simplify user-profile data acquisition with a graphical interface for Robocopy.
 
-The first version focuses on simplifying Robocopy-based user data copying from `C:\Users` through a graphical interface. The goal is to reduce the need for manual Command Prompt usage and make common IT copy tasks faster, safer, and more consistent.
+The toolbox allows technicians to select a Windows user, choose complete folders or specific nested subfolders, review detected file extensions, and run a structured copy job without manually writing Robocopy commands.
 
-## Project Purpose
+## Features
 
-This project was created as part of a Summer 2026 IT internship at Marshall+Sterling.
+* Modern CustomTkinter interface
+* Windows user-profile selection from `C:\Users`
+* Direct link to open the Windows Users directory
+* Default folder selections for:
 
-The tool is designed to help improve internal IT workflows, especially tasks related to user data copying, workstation setup, and future acquisition or migration processes.
+  * Desktop
+  * Favorites
+  * Downloads
+  * Documents
+* Optional **More Folders** view for every other top-level folder
+* Clickable folder names that open the selected location in File Explorer
+* Expandable and collapsible subfolder browser
+* Select specific nested paths such as:
 
-## Current Features
+  * `Pictures\Screenshots`
+  * `Desktop\Programming\Prototype`
+* Parent and child selection handling to prevent duplicate copy jobs
+* Scrollable folder and subfolder panels with mouse-wheel support
+* Extension scanning for selected folders
+* Extension-selection popup with Select All and Deselect All controls
+* `.exe`, `.bat`, `.msi`, and `.zip` start excluded by default when detected
+* One visible Command Prompt window for the complete copy process
+* Folder-level progress messages without displaying every individual filename
+* One combined Robocopy log for the entire job
+* Timestamped destination folders
+* Protection against recursively copying previous acquisition folders
+* Application icon support for the main window and popup windows
 
-- Python/Tkinter desktop interface
-- Marshall+Sterling themed UI
-- Modular project structure
-- Reusable helper methods
-- Asset path handling for development and PyInstaller
-- Image resizing helper for consistent logo/image scaling
-- Early UI structure for future Robocopy tools
+## Copy Behavior
 
-## Planned Features
+Each copy creates a new destination folder inside the selected Windows user profile:
 
-- User profile selection from `C:\Users`
-- Destination folder selection
-- Robocopy command preview
-- Robocopy execution through the GUI
-- Live output/status display
-- Saved log files
-- Copy presets for common IT workflows
-- PyInstaller packaging as a Windows `.exe`
+```text
+MS Username Copy YYYY-MM-DD_HH-MM-SS
+```
 
-## Tech Stack
+Robocopy is configured to:
 
-- Python
-- Tkinter
-- Pillow
-- Robocopy
-- PyInstaller
+* Copy file data, attributes, and timestamps with `/COPY:DAT`
+* Preserve copied directory timestamps with `/DCOPY:T`
+* Copy subfolders while skipping completely empty folders with `/S`
+* Retry failed files 3 times with `/R:3`
+* Wait 10 seconds between retries with `/W:10`
+* Write detailed file information to one combined log
 
-## Development Notes
+The application does not use `/MIR`, preventing Robocopy from deleting destination files.
 
-This project is being built in stages.
+## Requirements
 
-The first version focuses on the basic application structure, reusable UI components, and the starting layout. Later versions will add Robocopy functionality, command previews, logs, and workflow presets.
+* Windows 10 or Windows 11
+* Python 3.10 or newer
+* Robocopy, included with Windows
+* CustomTkinter
+* Pillow
 
-The project is intentionally organized across multiple files to practice a cleaner, more maintainable project structure instead of using a single-file script.
+Install the Python dependencies with:
 
-Status
+```bash
+pip install -r requirements.txt
+```
 
-In development.
+## Running From Source
 
-Current focus: building the basic UI and Starting Robocopy Functionality
+Clone or download the repository, open the project directory, and run:
+
+```bash
+python main.py
+```
+
+The application must be run on Windows because it uses:
+
+* `C:\Users`
+* `os.startfile()`
+* `cmd.exe`
+* Robocopy
+* A Windows batch script
+
+## Building an EXE
+
+The project can be packaged with Auto Py to Exe or PyInstaller.
+
+When using Auto Py to Exe, include these folders as additional folders:
+
+```text
+assets
+scripts
+```
+
+The packaged application must retain this relative path:
+
+```text
+scripts\run_robocopy.bat
+```
+
+The application uses `helpers.resource_path()` to locate bundled resources in both development and packaged builds.
+
+Recommended Auto Py to Exe settings:
+
+* Script Location: `main.py`
+* One Directory
+* Window Based
+* Icon: `assets\mslogo.ico`
+* Additional Folder: `assets`
+* Additional Folder: `scripts`
+
+## Project Structure
+
+```text
+M+S-IT-Acquisition-Toolbox/
+├── assets/
+│   ├── back_arrow.png
+│   ├── mslogo.ico
+│   ├── mslogo_long.png
+│   └── mslogo_short.png
+├── scripts/
+│   └── run_robocopy.bat
+├── services/
+│   └── robocopy_service.py
+├── ui/
+│   ├── base_screen.py
+│   ├── header.py
+│   ├── home.py
+│   ├── robocopy_actions.py
+│   ├── robocopy_components.py
+│   ├── robocopy_extensions.py
+│   ├── robocopy_folders.py
+│   ├── robocopy_page.py
+│   └── robocopy_ui.py
+├── utils/
+│   ├── helpers.py
+│   └── theme.py
+├── main.py
+└── requirements.txt
+```
+
+## How It Works
+
+1. Select a Windows user profile.
+2. Review the four default folders or choose **More Folders**.
+3. Select complete folders or expand them to choose specific subfolders.
+4. Click folder names to inspect their contents in File Explorer.
+5. Scan the selected paths for file extensions.
+6. Choose which detected extensions should be included.
+7. Start the copy and confirm the summary.
+8. Review folder-level progress in the Command Prompt window.
+9. Review the combined log inside the generated `Logs` folder.
+
+## Notes
+
+* Selecting a parent folder clears redundant selected descendants.
+* Selecting a specific subfolder clears its selected parent.
+* Previous folders created by the toolbox are excluded from future copy selections.
+* Empty folders are skipped.
+* Robocopy return codes below 8 are treated as successful.
+* Full file-level details are recorded in the combined log rather than displayed in Command Prompt.
+
+## Current Status
+
+The application is under active development and is being refined based on feedback from the Marshall + Sterling IT department.
+
+## Author
+
+Developed by Chris Herriman as part of an Information Systems Department internship project.
