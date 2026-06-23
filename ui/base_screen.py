@@ -1,12 +1,13 @@
-'''
+"""
 Creates App Base Screen
-'''
+"""
 
 ###############
 ### Imports ###
 ###############
 
-import tkinter as tk  # Creates the application's main content frame
+import customtkinter as ctk  # Creates the application's main content frame
+
 from utils import theme  # Gets the application theme items
 
 
@@ -15,8 +16,13 @@ from utils import theme  # Gets the application theme items
 ###########################################################
 
 def create_screen_base(root):
+    """Creates and returns the shared page-content frame."""
     # Creates the frame where each application page will be displayed
-    body = tk.Frame(root, bg=theme.light_gray_background, pady=10)
+    body = ctk.CTkFrame(
+        root,
+        fg_color=theme.light_gray_background,
+        corner_radius=0,
+    )
 
     # Allows the body row and main column to expand with the window
     root.grid_rowconfigure(2, weight=1)

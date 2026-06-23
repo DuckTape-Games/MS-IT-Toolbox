@@ -1,0 +1,9 @@
+############################
+### Runtime Dependencies  ###
+############################
+
+# Provides the modern desktop interface widgets
+customtkinter>=5.2.2
+
+# Loads and resizes application images
+Pillow>=10.0.0
