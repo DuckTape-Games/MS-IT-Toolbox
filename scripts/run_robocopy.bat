@@ -1,6 +1,6 @@
-rem ###########################
-rem ### Command Line Setup  ###
-rem ###########################
+rem ##########################
+rem ### Command Line Setup ###
+rem ##########################
 
 rem Hides each command so the window only shows useful status messages.
 @echo off
@@ -12,13 +12,17 @@ rem Gives the single copy window a clear title.
 title M+S Robocopy Progress
 
 
-rem ####################################
-rem ### Editable Robocopy Settings   ###
-rem ####################################
+rem ##################################
+rem ### Editable Robocopy Settings ###
+rem ##################################
 
-rem /E copies all subfolders, including empty folders.
-rem Do not replace /E with /MIR because /MIR can delete destination files.
-set "COPY_SUBDIRECTORIES=/E"
+rem /S copies subfolders but skips folders that are completely empty.
+rem Do not replace /S with /MIR because /MIR can delete destination files.
+set "COPY_SUBDIRECTORIES=/S"
+
+rem /COPY:DAT copies file data, attributes, and timestamps.
+rem /DCOPY:T preserves directory timestamps for copied folders.
+set "COPY_METADATA=/COPY:DAT /DCOPY:T"
 
 rem Sets how many times Robocopy retries a failed file.
 set "RETRY_COUNT=3"
@@ -31,9 +35,9 @@ rem Filenames are not displayed in Command Prompt because /TEE is not used.
 set "LOG_OPTIONS=/V /FP"
 
 
-rem ######################################
-rem ### Values Received From Python    ###
-rem ######################################
+rem ###################################
+rem ### Values Received From Python ###
+rem ###################################
 
 rem %%1 = job manifest file
 rem %%2 = result file written by this batch file
@@ -46,9 +50,9 @@ set "COMBINED_LOG_FILE=%~3"
 set "TOTAL_FOLDERS=%~4"
 
 
-rem ############################
+rem #############################
 rem ### Required Value Checks ###
-rem ############################
+rem #############################
 
 if not defined JOB_FILE (
     echo ERROR: No copy-job file was provided.
@@ -102,7 +106,7 @@ goto collect_exclusions
 
 
 rem ############################
-rem ### Prepare the Copy Job  ###
+rem ### Prepare the Copy Job ###
 rem ############################
 
 :prepare_copy
@@ -122,7 +126,7 @@ echo ================================================================
 echo.
 echo Folders selected: %TOTAL_FOLDERS%
 echo Combined log: "%COMBINED_LOG_FILE%"
-echo Empty folders will be included because Robocopy uses /E.
+echo Empty folders will be skipped because Robocopy uses /S.
 
 if defined EXCLUSION_ARGS (
     echo Excluded file patterns: !EXCLUSION_ARGS!
@@ -137,9 +141,9 @@ echo ================================================================
 echo.
 
 
-rem #################################
+rem ##################################
 rem ### Copy Every Selected Folder ###
-rem #################################
+rem ##################################
 
 rem Each manifest line contains:
 rem source path ^| destination path ^| display folder name
@@ -155,15 +159,15 @@ for /f "usebackq tokens=1-3 delims=|" %%A in ("%JOB_FILE%") do (
     rem Later folders append to the same file with /LOG+.
     if !CURRENT_FOLDER! EQU 1 (
         if defined EXCLUSION_ARGS (
-            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%" /XF !EXCLUSION_ARGS!
+            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%" /XF !EXCLUSION_ARGS!
         ) else (
-            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%"
+            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%"
         )
     ) else (
         if defined EXCLUSION_ARGS (
-            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%" /XF !EXCLUSION_ARGS!
+            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%" /XF !EXCLUSION_ARGS!
         ) else (
-            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%"
+            robocopy "%%A" "%%B" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%"
         )
     )
 
@@ -189,9 +193,9 @@ for /f "usebackq tokens=1-3 delims=|" %%A in ("%JOB_FILE%") do (
 )
 
 
-rem ################################
+rem #################################
 rem ### Display Completion Result ###
-rem ################################
+rem #################################
 
 :show_result
 echo.
@@ -213,8 +217,8 @@ echo Press any key when you are finished reviewing this window.
 pause >nul
 
 
-rem ################################
-rem ### Return Robocopy Result    ###
-rem ################################
+rem ##############################
+rem ### Return Robocopy Result ###
+rem ##############################
 
 exit /b %OVERALL_EXIT_CODE%

@@ -12,9 +12,9 @@ from services import robocopy_service  # Runs the batch-file Robocopy workflow
 from ui.robocopy_folders import get_selected_folders  # Reads selected source folders
 
 
-#############################################
+##############################################
 ### Runs Robocopy With the Current Choices ###
-#############################################
+##############################################
 
 def run_copy(
     body,
@@ -23,6 +23,7 @@ def run_copy(
     extension_vars,
     status_var,
 ):
+    """Validates the current choices and starts the Robocopy workflow."""
     # Gets the main application window for message-box ownership
     parent_window = body.winfo_toplevel()
 

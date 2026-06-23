@@ -1,13 +1,13 @@
-'''
+"""
 Creates App Header
-'''
+"""
 
 ###############
 ### Imports ###
 ###############
 
-import tkinter as tk  # Creates header frames, labels, and buttons
-from PIL import Image, ImageTk  # Loads and converts images for Tkinter
+import customtkinter as ctk  # Creates CustomTkinter header controls
+from PIL import Image  # Loads images for CustomTkinter
 
 from utils import helpers, theme  # Provides image helpers and shared theme values
 
@@ -17,8 +17,14 @@ from utils import helpers, theme  # Provides image helpers and shared theme valu
 ##########################
 
 def create_header(header):
+    """Creates the fixed application header and divider."""
     # Creates a fixed-height header so navigation controls do not shift the logo
-    head = tk.Frame(header, bg=theme.white, pady=10, height=95)
+    head = ctk.CTkFrame(
+        header,
+        fg_color=theme.white,
+        corner_radius=0,
+        height=95,
+    )
     head.grid(row=0, column=0, sticky="ew")
     head.grid_propagate(False)
 
@@ -28,11 +34,17 @@ def create_header(header):
     head.grid_columnconfigure(2, weight=1)
 
     # Adds the company logo to the center of the header
-    add_image(head, theme.long_logo, 75, bgcolor=theme.white)
+    add_image(head, theme.long_logo, 75)
 
     # Creates the blue divider line below the header
-    bottom_border = tk.Frame(header, bg=theme.dark_blue, pady=5)
+    bottom_border = ctk.CTkFrame(
+        header,
+        fg_color=theme.dark_blue,
+        corner_radius=0,
+        height=10,
+    )
     bottom_border.grid(row=1, column=0, sticky="ew")
+    bottom_border.grid_propagate(False)
 
     # Returns the header frame so other pages can add navigation controls
     return head
@@ -42,7 +54,7 @@ def create_header(header):
 ### Adds the Logo Onto the Screen ###
 #####################################
 
-def add_image(header, image, height=None, bgcolor=theme.white):
+def add_image(header, image, height=None):
     """Adds a centered image to the header."""
     # Loads the image with transparency support
     logo = Image.open(image).convert("RGBA")
@@ -51,11 +63,20 @@ def add_image(header, image, height=None, bgcolor=theme.white):
     if height:
         logo = helpers.resize_image(logo, new_height=height)
 
-    # Converts the Pillow image into a Tkinter-compatible image
-    logo_image = ImageTk.PhotoImage(logo)
+    # Converts the Pillow image into a CustomTkinter-compatible image
+    logo_image = ctk.CTkImage(
+        light_image=logo,
+        dark_image=logo,
+        size=logo.size,
+    )
 
     # Displays the logo over the chosen header background color
-    logo_label = tk.Label(header, image=logo_image, bg=bgcolor)
+    logo_label = ctk.CTkLabel(
+        header,
+        image=logo_image,
+        text="",
+        fg_color="transparent",
+    )
 
     # Keeps a reference so Python does not remove the image from memory
     logo_label.image = logo_image
@@ -64,26 +85,33 @@ def add_image(header, image, height=None, bgcolor=theme.white):
     logo_label.place(relx=0.5, rely=0.5, anchor="center")
 
 
-#########################################################################
+#####################################################################
 ### Creates a Back Button When the User is Not on the Home Screen ###
-#########################################################################
+#####################################################################
 
 def add_back_button(header, body, create_home):
+    """Adds the header button used to return to the home page."""
     # Loads and resizes the transparent back-arrow image
     back_arrow = Image.open(theme.back_arrow).convert("RGBA")
     back_arrow = helpers.resize_image(back_arrow, new_height=40)
-    back_arrow_image = ImageTk.PhotoImage(back_arrow)
+    back_arrow_image = ctk.CTkImage(
+        light_image=back_arrow,
+        dark_image=back_arrow,
+        size=back_arrow.size,
+    )
 
     # Creates the back arrow as a clickable image button
-    back_button = tk.Button(
+    back_button = ctk.CTkButton(
         header,
+        text="",
         image=back_arrow_image,
         command=lambda: create_home(body, header, back_button),
-        bg=theme.white,
-        activebackground=theme.white,
-        borderwidth=0,
-        highlightthickness=0,
-        relief="flat",
+        width=48,
+        height=48,
+        fg_color="transparent",
+        hover_color=theme.light_gray_background,
+        border_width=0,
+        corner_radius=0,
         cursor="hand2",
     )
 

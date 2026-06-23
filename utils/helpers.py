@@ -63,6 +63,7 @@ def resize_image(image, new_width=None, new_height=None):
 ######################
 
 def clear_frame(frame):
+    """Removes every child widget from a frame."""
     # Loops through every widget in a frame and removes it
     for widget in frame.winfo_children():
         widget.destroy()
@@ -73,6 +74,7 @@ def clear_frame(frame):
 ############################################################
 
 def get_windows_users():
+    """Returns valid Windows user-profile folder names."""
     # Stores the standard Windows user-profile location
     users_path = Path("C:/Users")
 
@@ -98,9 +100,9 @@ def get_windows_users():
     return users
 
 
-#####################################################
+####################################################
 ### Checks for Previously Generated Copy Folders ###
-#####################################################
+####################################################
 
 def is_generated_copy_folder(folder_name, username):
     """Checks whether a folder was created by the acquisition copy tool."""
@@ -119,6 +121,7 @@ def is_generated_copy_folder(folder_name, username):
 ###############################################
 
 def get_user_folders(username):
+    """Returns accessible top-level folders for one Windows user."""
     # Builds the full path to the selected Windows user profile
     user_path = Path("C:/Users") / username
 
@@ -135,9 +138,9 @@ def get_user_folders(username):
         return []
 
 
-###################################################
+####################################################
 ### Gets All Unique Extensions for User Profiles ###
-###################################################
+####################################################
 
 def get_unique_extensions(username, folder_vars):
     """

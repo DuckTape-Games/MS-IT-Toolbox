@@ -1,53 +1,35 @@
-'''
-Creates the common extension controls and full extension popup.
-'''
+"""
+Creates the full extension scan and selection popup.
+"""
 
 ###############
 ### Imports ###
 ###############
 
-import tkinter as tk  # Creates extension-selection widgets
+import tkinter as tk  # Provides Canvas and BooleanVar for scrolling and state
 from tkinter import messagebox  # Displays extension-scan validation messages
 
-from ui.robocopy_components import create_link_control  # Creates link-style controls
+import customtkinter as ctk  # Creates CustomTkinter popup controls
+
+from ui.robocopy_components import (  # Creates shared popup controls
+    apply_window_icon,
+    create_link_control,
+)
 from ui.robocopy_folders import get_selected_folders  # Reads selected source folders
 from utils import helpers, theme  # Provides extension scanning and visual settings
 
 
-###################################
-### Common Extension Constants  ###
-###################################
+########################################
+### Default Excluded Extension Types ###
+########################################
 
-# These file types always remain visible on the main Robocopy page
-COMMON_EXTENSIONS = [".exe", ".msi", ".bat", ".zip"]
-
-################################################################
-### Creates Checkboxes for Commonly Excluded File Extensions ###
-################################################################
-
-def default_extension_checkboxes(extension_frame, extension_vars):
-    # Removes any old common extension widgets from the frame
-    helpers.clear_frame(extension_frame)
-
-    # Resets the shared extension state when the Robocopy page is created
-    extension_vars.clear()
-
-    # Creates the four common extensions as selected by default
-    for count, extension in enumerate(COMMON_EXTENSIONS):
-        extension_var = tk.BooleanVar(value=True)
-        extension_vars[extension] = extension_var
-
-        # Connects the main-page checkbox to the shared extension variable
-        checkbox = tk.Checkbutton(
-            extension_frame,
-            text=extension,
-            variable=extension_var,
-            bg=theme.light_gray_background,
-            fg=theme.dark_blue,
-        )
-
-        # Places the common extensions in a single vertical column
-        checkbox.grid(column=0, row=count, sticky="w")
+# These detected file types begin unselected in the popup
+DEFAULT_UNSELECTED_EXTENSIONS = {
+    ".exe",
+    ".bat",
+    ".msi",
+    ".zip",
+}
 
 
 #####################################################
@@ -55,6 +37,7 @@ def default_extension_checkboxes(extension_frame, extension_vars):
 #####################################################
 
 def create_extension_popup(body, selected_user, folder_vars, extension_vars):
+    """Scans selected folders and displays extension choices in a popup."""
     # Stops the scan when no Windows user has been selected
     if not selected_user:
         messagebox.showwarning(
@@ -80,31 +63,31 @@ def create_extension_popup(body, selected_user, folder_vars, extension_vars):
     extensions = helpers.get_unique_extensions(selected_user, folder_vars)
 
     # Creates the popup that displays every detected extension
-    popup = tk.Toplevel(body)
+    popup = ctk.CTkToplevel(body, fg_color=theme.light_gray_background)
     popup.title("All File Types")
     popup.geometry("1200x600")
     popup.minsize(750, 400)
-    popup.configure(bg=theme.light_gray_background)
-    popup.iconbitmap(theme.app_icon)
+    apply_window_icon(popup)
 
     # Keeps the popup attached to and in front of the main application window
     popup.transient(body.winfo_toplevel())
     popup.grab_set()
 
     # Adds the popup heading
-    popup_title = tk.Label(
+    popup_title = ctk.CTkLabel(
         popup,
         text="Detected File Types",
         font=theme.font_header,
-        bg=theme.light_gray_background,
-        fg=theme.dark_blue,
+        text_color=theme.dark_blue,
+        fg_color="transparent",
     )
     popup_title.pack(pady=(20, 10))
 
     # Holds the popup Select All and Deselect All links
-    popup_controls_frame = tk.Frame(
+    popup_controls_frame = ctk.CTkFrame(
         popup,
-        bg=theme.light_gray_background,
+        fg_color="transparent",
+        corner_radius=0,
     )
     popup_controls_frame.pack(pady=(0, 10))
 
@@ -133,28 +116,41 @@ def create_extension_popup(body, selected_user, folder_vars, extension_vars):
     deselect_all_popup_link.pack(side="left", padx=8)
 
     # Holds the scrollable canvas and vertical scrollbar
-    scroll_container = tk.Frame(popup, bg=theme.light_gray_background)
+    scroll_container = ctk.CTkFrame(
+        popup,
+        fg_color="transparent",
+        corner_radius=0,
+    )
     scroll_container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+    scroll_container.rowconfigure(0, weight=1)
+    scroll_container.columnconfigure(0, weight=1)
 
-    # Creates the scrollable drawing area for the extension checkbox frame
+    # CustomTkinter has no canvas widget, so Tk Canvas provides scrolling only
     canvas = tk.Canvas(
         scroll_container,
         bg=theme.light_gray_background,
         highlightthickness=0,
     )
-    canvas.pack(side="left", fill="both", expand=True)
+    canvas.grid(row=0, column=0, sticky="nsew")
 
-    # Creates and connects the visible vertical scrollbar
-    scrollbar = tk.Scrollbar(
+    # Creates and connects the CustomTkinter vertical scrollbar
+    scrollbar = ctk.CTkScrollbar(
         scroll_container,
-        orient="vertical",
+        orientation="vertical",
         command=canvas.yview,
+        fg_color=theme.scrollbar_track,
+        button_color=theme.scrollbar_thumb,
+        button_hover_color=theme.scrollbar_hover,
     )
-    scrollbar.pack(side="right", fill="y")
+    scrollbar.grid(row=0, column=1, sticky="ns", padx=(8, 0))
     canvas.configure(yscrollcommand=scrollbar.set)
 
-    # Creates the frame that actually contains the extension checkboxes
-    checkbox_frame = tk.Frame(canvas, bg=theme.light_gray_background)
+    # Creates the CustomTkinter frame that contains extension checkboxes
+    checkbox_frame = ctk.CTkFrame(
+        canvas,
+        fg_color=theme.light_gray_background,
+        corner_radius=0,
+    )
 
     # Places the checkbox frame inside the canvas as a scrollable window item
     checkbox_window = canvas.create_window(
@@ -180,41 +176,55 @@ def create_extension_popup(body, selected_user, folder_vars, extension_vars):
     ########################################
 
     def on_mousewheel(event):
+        """Scrolls the extension list with the Windows mouse wheel."""
         # Converts Windows mouse-wheel movement into canvas scrolling
         canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-    def bind_mousewheel(event):
+    def bind_mousewheel(event=None):
+        """Enables mouse-wheel scrolling while the popup is active."""
         # Enables wheel scrolling while the cursor is over the canvas
         canvas.bind_all("<MouseWheel>", on_mousewheel)
 
     def unbind_mousewheel(event=None):
+        """Removes the popup mouse-wheel binding when it is not needed."""
         # Removes the global wheel binding when the cursor leaves or popup closes
         canvas.unbind_all("<MouseWheel>")
 
     # Activates and deactivates wheel scrolling based on cursor location
     canvas.bind("<Enter>", bind_mousewheel)
     canvas.bind("<Leave>", unbind_mousewheel)
+    checkbox_frame.bind("<Enter>", bind_mousewheel)
+    checkbox_frame.bind("<Leave>", unbind_mousewheel)
 
     # Converts the current scan result into a set for quick membership checks
     current_extensions = set(extensions)
 
-    # Removes stale scanned values while preserving the four main-page values
+    # Removes extension values that are no longer present in the current scan
     for extension in list(extension_vars):
-        if extension not in COMMON_EXTENSIONS and extension not in current_extensions:
+        if extension not in current_extensions:
             del extension_vars[extension]
 
-    # Creates a shared checkbox for every extension found during the scan
+    # Creates a shared CustomTkinter checkbox for every extension found
     for index, extension in enumerate(extensions):
-        # Reuses common extension variables so the popup and main page stay synchronized
+        # Defaults executable and archive types to excluded while including all others
         if extension not in extension_vars:
-            extension_vars[extension] = tk.BooleanVar(value=True)
+            starts_selected = (
+                extension.casefold() not in DEFAULT_UNSELECTED_EXTENSIONS
+            )
+            extension_vars[extension] = tk.BooleanVar(value=starts_selected)
 
-        extension_checkbox = tk.Checkbutton(
+        # Creates the checkbox connected to this extension's shared state
+        extension_checkbox = ctk.CTkCheckBox(
             checkbox_frame,
             text=extension,
             variable=extension_vars[extension],
-            bg=theme.light_gray_background,
-            fg=theme.dark_blue,
+            font=theme.font_main,
+            text_color=theme.dark_blue,
+            fg_color=theme.primary_blue,
+            hover_color=theme.dark_blue,
+            border_color=theme.dark_blue,
+            checkbox_width=18,
+            checkbox_height=18,
         )
 
         # Places the full extension list in three columns
@@ -228,20 +238,21 @@ def create_extension_popup(body, selected_user, folder_vars, extension_vars):
 
     # Displays a message when the selected folders contain no file extensions
     if not extensions:
-        no_extensions_label = tk.Label(
+        no_extensions_label = ctk.CTkLabel(
             checkbox_frame,
             text="No file extensions were found.",
             font=theme.font_label,
-            bg=theme.light_gray_background,
-            fg=theme.dark_blue,
+            text_color=theme.dark_blue,
+            fg_color="transparent",
         )
         no_extensions_label.grid(row=0, column=0, padx=20, pady=20)
 
-    ################################
-    ### Closes the Popup Safely  ###
-    ################################
+    ###############################
+    ### Closes the Popup Safely ###
+    ###############################
 
     def close_popup():
+        """Removes temporary bindings and closes the extension popup."""
         # Removes the wheel binding before destroying the popup
         unbind_mousewheel()
         popup.destroy()
@@ -250,10 +261,12 @@ def create_extension_popup(body, selected_user, folder_vars, extension_vars):
     popup.protocol("WM_DELETE_WINDOW", close_popup)
 
     # Adds a normal Close button below the scrollable extension area
-    close_button = tk.Button(
+    close_button = ctk.CTkButton(
         popup,
         text="Close",
         font=theme.font_button,
+        fg_color=theme.primary_blue,
+        hover_color=theme.dark_blue,
         command=close_popup,
     )
     close_button.pack(side="bottom", pady=20)

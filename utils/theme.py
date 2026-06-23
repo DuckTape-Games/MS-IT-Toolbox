@@ -17,6 +17,9 @@ primary_blue = "#174A9C"  # Main company blue used for links and accents
 dark_blue = "#0B2F6B"  # Darker blue used for labels, borders, and text
 light_gray_background = "#F4F6F8"  # Main application background color
 white = "#ffffff"  # Header and button background color
+scrollbar_track = "#E9EDF2"  # Soft scrollbar track that blends into the page
+scrollbar_thumb = "#B8C1CC"  # Muted gray scrollbar handle
+scrollbar_hover = "#9FAAB7"  # Slightly darker gray when hovering
 
 
 #############
