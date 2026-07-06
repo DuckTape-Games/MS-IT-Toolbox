@@ -62,7 +62,7 @@ def create_home(body, head, back_button=None):
     # Creates the button that opens the Robocopy workflow
     robocopy_button = ctk.CTkButton(
         body,
-        text="Robocopy",
+        text="M+S File Copy",
         font=theme.font_button,
         text_color=theme.dark_blue,
         fg_color=theme.white,

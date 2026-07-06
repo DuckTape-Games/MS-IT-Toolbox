@@ -22,6 +22,8 @@ def run_copy(
     folder_vars,
     extension_vars,
     status_var,
+    backup_type,
+    incremental_destination,
 ):
     """Validates the current choices and starts the Robocopy workflow."""
     # Gets the main application window for message-box ownership
@@ -48,6 +50,24 @@ def run_copy(
         )
         return
 
+    # Accepts only the two backup modes exposed by the radio buttons
+    if backup_type not in {"initial", "incremental"}:
+        messagebox.showwarning(
+            "Invalid Backup Type",
+            "Select either Initial or Incremental backup.",
+            parent=parent_window,
+        )
+        return
+
+    # Incremental copies require an existing destination selected by the technician
+    if backup_type == "incremental" and not incremental_destination:
+        messagebox.showwarning(
+            "No Existing Backup Selected",
+            "Choose an existing backup folder before running an incremental backup.",
+            parent=parent_window,
+        )
+        return
+
     # Converts unchecked extension variables into Robocopy exclusions
     excluded_extensions = [
         extension
@@ -55,13 +75,26 @@ def run_copy(
         if not variable.get()
     ]
 
+    # Builds a mode-specific destination summary for final confirmation
+    destination_summary = (
+        "A new timestamped folder in the selected user profile"
+        if backup_type == "initial"
+        else incremental_destination
+    )
+    backup_type_name = (
+        "Initial Backup"
+        if backup_type == "initial"
+        else "Incremental Backup"
+    )
+
     # Gives the technician a summary before starting the copy
     confirmed = messagebox.askyesno(
-        "Confirm Copy",
+        f"Confirm {backup_type_name}",
         (
+            f"Backup type: {backup_type_name}\n"
             f"User: {selected_user}\n"
             f"Folders: {len(selected_folders)} selected\n"
-            "Destination: A new folder in the selected user profile\n"
+            f"Destination: {destination_summary}\n"
             f"Excluded file types: {len(excluded_extensions)}\n\n"
             "Start Robocopy?"
         ),
@@ -73,7 +106,7 @@ def run_copy(
         return
 
     # Updates the interface before the synchronous Robocopy process begins
-    status_var.set("Robocopy is running...")
+    status_var.set(f"{backup_type_name} is running...")
     parent_window.update_idletasks()
 
     try:
@@ -82,8 +115,10 @@ def run_copy(
             username=selected_user,
             selected_folders=selected_folders,
             excluded_extensions=excluded_extensions,
+            backup_type=backup_type,
+            incremental_destination=incremental_destination,
         )
-    except (FileNotFoundError, PermissionError, OSError, RuntimeError) as error:
+    except (FileNotFoundError, PermissionError, OSError, RuntimeError, ValueError) as error:
         # Displays errors caused by missing files, permissions, or Windows commands
         status_var.set("Copy failed")
         messagebox.showerror(
@@ -102,11 +137,11 @@ def run_copy(
 
     # Displays the destination and logs when every selected folder succeeds
     if result["success"]:
-        status_var.set("Copy completed successfully")
+        status_var.set(f"{backup_type_name} completed successfully")
         messagebox.showinfo(
-            "Copy Complete",
+            f"{backup_type_name} Complete",
             (
-                "Robocopy completed successfully.\n\n"
+                f"{backup_type_name} completed successfully.\n\n"
                 f"Destination: {result['destination']}\n"
                 f"Logs: {result['log_folder']}"
             ),
@@ -115,7 +150,7 @@ def run_copy(
         return
 
     # Changes the status when one or more selected folders fail
-    status_var.set("Copy completed with errors")
+    status_var.set(f"{backup_type_name} completed with errors")
 
     # Creates a readable comma-separated list of failed folder names
     failed_names = ", ".join(

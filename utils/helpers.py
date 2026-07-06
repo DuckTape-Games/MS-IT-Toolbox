@@ -7,6 +7,7 @@ Helper methods for M+S IT Acquisition Toolbox
 ###############
 
 import sys  # Detects PyInstaller's temporary resource folder
+from datetime import datetime  # Parses timestamps from generated backup folders
 from pathlib import Path  # Provides Windows user and folder path handling
 
 
@@ -113,6 +114,59 @@ def is_generated_copy_folder(folder_name, username):
     return (
         folder_name.startswith(current_prefix)
         or folder_name.startswith("M+S Acquisition Copy ")
+    )
+
+
+#################################################
+### Finds the Most Recent User Backup Folder  ###
+#################################################
+
+def _get_backup_sort_time(backup_folder, username):
+    """Returns the timestamp used to compare generated backup folders."""
+    # Extracts the timestamp from the current generated-folder naming format
+    current_prefix = f"MS {username} Copy "
+    if backup_folder.name.startswith(current_prefix):
+        timestamp_text = backup_folder.name[len(current_prefix):]
+
+        try:
+            return datetime.strptime(
+                timestamp_text,
+                "%Y-%m-%d_%H-%M-%S",
+            ).timestamp()
+        except ValueError:
+            # Falls back to the folder's modified time for malformed older names
+            pass
+
+    # Uses modified time for older naming formats or folders without a valid timestamp
+    try:
+        return backup_folder.stat().st_mtime
+    except (FileNotFoundError, PermissionError, OSError):
+        return 0
+
+
+def find_most_recent_backup(username):
+    """Returns the newest backup generated inside the selected user profile."""
+    # Searches only inside the selected user's profile to avoid cross-user matches
+    user_path = Path("C:/Users") / username
+
+    try:
+        backup_folders = [
+            folder
+            for folder in user_path.iterdir()
+            if folder.is_dir()
+            and is_generated_copy_folder(folder.name, username)
+        ]
+    except (FileNotFoundError, PermissionError, OSError):
+        return None
+
+    # Returns no result when the selected user has never received a backup
+    if not backup_folders:
+        return None
+
+    # Uses the generated timestamp when available, then folder modified time as fallback
+    return max(
+        backup_folders,
+        key=lambda folder: _get_backup_sort_time(folder, username),
     )
 
 

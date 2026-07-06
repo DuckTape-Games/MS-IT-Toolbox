@@ -81,6 +81,23 @@ def _is_descendant(child_path, parent_path):
     )
 
 
+def _has_selected_ancestor(folder_vars, child_path):
+    """Returns True when a loaded ancestor already selects this folder."""
+    child_parts = PurePath(child_path).parts
+
+    for relative_path, variable in folder_vars.items():
+        parent_parts = PurePath(relative_path).parts
+
+        if (
+            variable.get()
+            and len(parent_parts) < len(child_parts)
+            and child_parts[:len(parent_parts)] == parent_parts
+        ):
+            return True
+
+    return False
+
+
 def _clear_selected_descendants(folder_vars, parent_path):
     """Clears selected descendants when their parent becomes selected."""
     for relative_path, variable in folder_vars.items():
@@ -102,14 +119,22 @@ def _clear_selected_ancestors(folder_vars, child_path):
 
 
 def _handle_selection_change(folder_vars, relative_path):
-    """Keeps parent and child selections from duplicating the same copy work."""
+    """Keeps loaded folder states synchronized with parent and child choices."""
     variable = folder_vars[relative_path]
 
     if variable.get():
-        # Selecting a specific child switches the copy from its parent to that child
+        # Selecting a child clears any selected ancestors to prevent duplicates
         _clear_selected_ancestors(folder_vars, relative_path)
 
-        # Selecting a parent removes redundant selected descendants
+        # Loaded descendants begin selected because the chosen folder includes them
+        for child_path, child_variable in folder_vars.items():
+            if _is_descendant(child_path, relative_path):
+                child_variable.set(True)
+    else:
+        # Clearing a nested folder removes selected ancestors so the exclusion works
+        _clear_selected_ancestors(folder_vars, relative_path)
+
+        # Clearing a folder also clears all loaded descendants beneath it
         _clear_selected_descendants(folder_vars, relative_path)
 
 
@@ -277,7 +302,14 @@ class SubfolderPanel:
     def _get_or_create_variable(self, relative_path):
         """Returns the shared BooleanVar for one subfolder path."""
         if relative_path not in self.folder_vars:
-            self.folder_vars[relative_path] = tk.BooleanVar(value=False)
+            # Newly loaded subfolders inherit the selected state of their parent
+            starts_selected = _has_selected_ancestor(
+                self.folder_vars,
+                relative_path,
+            )
+            self.folder_vars[relative_path] = tk.BooleanVar(
+                value=starts_selected
+            )
 
         return self.folder_vars[relative_path]
 
@@ -322,6 +354,7 @@ class SubfolderPanel:
         children = self._get_children(relative_path)
         is_expanded = relative_path in self.expanded_paths
         folder_var = self._get_or_create_variable(relative_path)
+
 
         # Holds the expand button, checkbox, and clickable folder name
         row_frame = ctk.CTkFrame(
@@ -553,9 +586,14 @@ def _render_top_level_folders(
             fg_color=theme.primary_blue,
             hover_color=theme.dark_blue,
             border_color=theme.dark_blue,
-            command=lambda path=folder_name: _handle_selection_change(
-                folder_vars,
-                path,
+            command=lambda path=folder_name: (
+                _handle_selection_change(
+                    folder_vars,
+                    path,
+                ),
+                subfolder_panel.render()
+                if subfolder_panel.root_folder == path
+                else None,
             ),
         )
         checkbox.pack(side="left")
