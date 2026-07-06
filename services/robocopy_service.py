@@ -145,20 +145,37 @@ def _read_folder_results(result_file):
 ### Runs the Robocopy Copy Operation ###
 ########################################
 
-def run_robocopy(username, selected_folders, excluded_extensions):
+def run_robocopy(
+    username,
+    selected_folders,
+    excluded_extensions,
+    backup_type="initial",
+    incremental_destination="",
+):
     """
-    Copies every selected folder or subfolder into one timestamped folder created
-    directly inside the selected Windows user profile.
+    Copies selected folders into either a new timestamped destination or an
+    existing backup folder chosen for an incremental update.
 
     One editable batch-file process handles the complete copy job, so only one
     Command Prompt window opens. Robocopy uses /S, so empty folders are skipped.
     """
-    # Builds the source profile and unique destination for the current run
+    # Builds the source profile and timestamp used for folders and log files
     source_profile = Path("C:/Users") / username
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    destination_profile = source_profile / f"MS {username} Copy {timestamp}"
-    log_folder = destination_profile / "Logs"
     batch_file = Path(ROBOCOPY_BATCH_FILE)
+
+    # Creates a new destination for initial mode or reuses an existing backup
+    if backup_type == "initial":
+        destination_profile = source_profile / f"MS {username} Copy {timestamp}"
+    elif backup_type == "incremental":
+        destination_profile = Path(incremental_destination).expanduser()
+    else:
+        raise ValueError(
+            "Backup type must be either 'initial' or 'incremental'."
+        )
+
+    # Stores each run's log inside the chosen backup destination
+    log_folder = destination_profile / "Logs"
     combined_log_file = log_folder / f"robocopy_{timestamp}.log"
 
     # Stops if the selected Windows profile cannot be found
@@ -166,6 +183,26 @@ def run_robocopy(username, selected_folders, excluded_extensions):
         raise FileNotFoundError(
             f"The selected user profile does not exist: {source_profile}"
         )
+
+    # Incremental mode requires an existing destination directory
+    if backup_type == "incremental":
+        if not destination_profile.exists():
+            raise FileNotFoundError(
+                f"The selected backup folder does not exist: {destination_profile}"
+            )
+
+        if not destination_profile.is_dir():
+            raise NotADirectoryError(
+                f"The selected incremental destination is not a folder: "
+                f"{destination_profile}"
+            )
+
+        # Prevents the user profile itself from being used as a backup destination
+        if destination_profile.resolve() == source_profile.resolve():
+            raise ValueError(
+                "The Windows user profile itself cannot be used as the "
+                "incremental backup destination."
+            )
 
     # Stops if the editable batch file is missing from the scripts folder
     if not batch_file.exists():
@@ -175,8 +212,10 @@ def run_robocopy(username, selected_folders, excluded_extensions):
             f"folder set to scripts. Expected path: {batch_file}"
         )
 
-    # Creates the main destination and shared log folder before copying
-    destination_profile.mkdir(parents=True, exist_ok=True)
+    # Creates the new initial destination and the shared log folder
+    if backup_type == "initial":
+        destination_profile.mkdir(parents=True, exist_ok=True)
+
     log_folder.mkdir(parents=True, exist_ok=True)
 
     # Stores invalid selections before the valid folders are sent to the batch file
@@ -229,6 +268,7 @@ def run_robocopy(username, selected_folders, excluded_extensions):
     if not jobs:
         return {
             "success": False,
+            "backup_type": backup_type,
             "destination": str(destination_profile),
             "log_folder": str(log_folder),
             "results": results,
@@ -294,6 +334,7 @@ def run_robocopy(username, selected_folders, excluded_extensions):
 
     return {
         "success": overall_success,
+        "backup_type": backup_type,
         "destination": str(destination_profile),
         "log_folder": str(log_folder),
         "results": results,

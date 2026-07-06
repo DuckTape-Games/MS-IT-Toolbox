@@ -7,6 +7,7 @@ Builds the main Robocopy page and connects its controls.
 ###############
 
 import tkinter as tk  # Provides Canvas and StringVar for scrolling and status
+from tkinter import filedialog  # Selects an existing backup for incremental copies
 
 import customtkinter as ctk  # Creates the CustomTkinter Robocopy page controls
 
@@ -46,6 +47,12 @@ def create_robocopy_page(body):
     # Stores the text displayed below the main action buttons
     status_var = tk.StringVar(value="Ready")
 
+    # Stores whether the technician is running an initial or incremental backup
+    backup_type_var = tk.StringVar(value="initial")
+
+    # Stores the existing destination selected for an incremental backup
+    incremental_destination_var = tk.StringVar(value="")
+
     # Holds the user selector above all three lower sections
     user_select_frame = ctk.CTkFrame(
         body,
@@ -82,14 +89,6 @@ def create_robocopy_page(body):
         button_color=theme.primary_blue,
         button_hover_color=theme.dark_blue,
         text_color=theme.dark_blue,
-        command=lambda selected_user: create_user_folder_checkboxes(
-            selected_user,
-            folder_checkbox_frame,
-            subfolder_panel,
-            folder_vars,
-            folder_display_state,
-            more_folders_button,
-        ),
     )
     user_combobox.pack(side="left", padx=(0, 30))
     user_combobox.set("")
@@ -236,6 +235,169 @@ def create_robocopy_page(body):
     middle_frame.grid(column=1, row=2, rowspan=2, pady=10, sticky="n")
     middle_frame.grid_propagate(False)
 
+    # Labels the backup mode controls in the middle action area
+    backup_type_label = ctk.CTkLabel(
+        middle_frame,
+        text="Backup Type",
+        font=theme.font_label,
+        text_color=theme.dark_blue,
+        fg_color="transparent",
+    )
+    backup_type_label.place(relx=0.5, rely=0.08, anchor="center")
+
+    # Groups both backup options so only one can be selected at a time
+    backup_type_frame = ctk.CTkFrame(
+        middle_frame,
+        fg_color="transparent",
+        corner_radius=0,
+    )
+    backup_type_frame.place(relx=0.5, rely=0.18, anchor="center")
+
+    # Finds and displays the newest generated backup for the selected user
+    def select_latest_backup():
+        """Automatically selects the newest backup for the current user."""
+        selected_user = user_combobox.get().strip()
+
+        # Clears the destination until a valid user and backup are found
+        incremental_destination_var.set("")
+
+        if not selected_user:
+            selected_backup_label.configure(
+                text="Select a user to find their latest backup"
+            )
+            return None
+
+        latest_backup = helpers.find_most_recent_backup(selected_user)
+
+        if latest_backup is None:
+            selected_backup_label.configure(
+                text="No existing backup found for this user"
+            )
+            return None
+
+        incremental_destination_var.set(str(latest_backup))
+        selected_backup_label.configure(
+            text=f"Latest backup: {latest_backup.name}"
+        )
+        return latest_backup
+
+    # Updates button text and destination controls when the backup type changes
+    def update_backup_type_controls():
+        """Refreshes controls that depend on the selected backup type."""
+        is_incremental = backup_type_var.get() == "incremental"
+
+        # Makes manual backup selection available only for incremental copies
+        choose_backup_button.configure(
+            state="normal" if is_incremental else "disabled"
+        )
+
+        # Keeps the main action text consistent with the selected operation
+        run_copy_button.configure(
+            text=(
+                "Run Incremental Backup"
+                if is_incremental
+                else "Run Initial Backup"
+            )
+        )
+
+        if is_incremental:
+            # Automatically fills the destination with the user's newest backup
+            select_latest_backup()
+        else:
+            # Clears the incremental destination when returning to initial mode
+            incremental_destination_var.set("")
+            selected_backup_label.configure(text="No existing backup selected")
+
+    # Allows the technician to override the automatically selected backup
+    def choose_incremental_destination():
+        """Prompts for a different existing backup folder."""
+        selected_folder = filedialog.askdirectory(
+            title="Select Existing Backup Folder",
+            parent=body.winfo_toplevel(),
+        )
+
+        # Keeps the automatically detected value when the dialog is cancelled
+        if not selected_folder:
+            return
+
+        incremental_destination_var.set(selected_folder)
+        selected_backup_label.configure(
+            text=f"Selected manually: {selected_folder}"
+        )
+
+    # Loads folders and refreshes the latest-backup match after a user change
+    def handle_user_selection(selected_user):
+        """Updates folder choices and incremental destination for a new user."""
+        create_user_folder_checkboxes(
+            selected_user,
+            folder_checkbox_frame,
+            subfolder_panel,
+            folder_vars,
+            folder_display_state,
+            more_folders_button,
+        )
+
+        # Re-detects the destination only while incremental mode is active
+        if backup_type_var.get() == "incremental":
+            select_latest_backup()
+
+    # Selects the normal first-time backup workflow
+    initial_backup_radio = ctk.CTkRadioButton(
+        backup_type_frame,
+        text="Initial",
+        variable=backup_type_var,
+        value="initial",
+        font=theme.font_main,
+        text_color=theme.dark_blue,
+        fg_color=theme.primary_blue,
+        hover_color=theme.dark_blue,
+        command=update_backup_type_controls,
+    )
+    initial_backup_radio.pack(side="left", padx=8)
+
+    # Selects the workflow that updates an existing backup folder
+    incremental_backup_radio = ctk.CTkRadioButton(
+        backup_type_frame,
+        text="Incremental",
+        variable=backup_type_var,
+        value="incremental",
+        font=theme.font_main,
+        text_color=theme.dark_blue,
+        fg_color=theme.primary_blue,
+        hover_color=theme.dark_blue,
+        command=update_backup_type_controls,
+    )
+    incremental_backup_radio.pack(side="left", padx=8)
+
+    # Opens the folder selector for an existing incremental-backup destination
+    choose_backup_button = ctk.CTkButton(
+        middle_frame,
+        text="Choose Different Backup",
+        font=theme.font_main,
+        width=180,
+        height=30,
+        fg_color="transparent",
+        hover_color="#E7ECF2",
+        text_color=theme.primary_blue,
+        border_color=theme.primary_blue,
+        border_width=1,
+        state="disabled",
+        command=choose_incremental_destination,
+    )
+    choose_backup_button.place(relx=0.5, rely=0.28, anchor="center")
+
+    # Displays the selected incremental destination without changing the layout
+    selected_backup_label = ctk.CTkLabel(
+        middle_frame,
+        text="No existing backup selected",
+        font=theme.font_main,
+        text_color=theme.dark_blue,
+        fg_color="transparent",
+        wraplength=205,
+        justify="center",
+    )
+    selected_backup_label.place(relx=0.5, rely=0.36, anchor="center")
+
     # Creates the scrollable subfolder area on the right
     subfolder_frame = ctk.CTkFrame(
         body,
@@ -328,12 +490,12 @@ def create_robocopy_page(body):
             extension_vars,
         ),
     )
-    scan_extensions_button.place(relx=0.5, rely=0.35, anchor="center")
+    scan_extensions_button.place(relx=0.5, rely=0.50, anchor="center")
 
     # Starts the copy using the current user, folder, and extension choices
     run_copy_button = ctk.CTkButton(
         middle_frame,
-        text="Run Copy",
+        text="Run Initial Backup",
         font=theme.font_button,
         width=140,
         height=38,
@@ -345,9 +507,11 @@ def create_robocopy_page(body):
             folder_vars,
             extension_vars,
             status_var,
+            backup_type_var.get(),
+            incremental_destination_var.get(),
         ),
     )
-    run_copy_button.place(relx=0.5, rely=0.70, anchor="center")
+    run_copy_button.place(relx=0.5, rely=0.72, anchor="center")
 
     # Displays Ready, running, completed, or failed status text
     status_label = ctk.CTkLabel(
@@ -359,4 +523,7 @@ def create_robocopy_page(body):
         wraplength=220,
         justify="center",
     )
-    status_label.place(relx=0.5, rely=0.88, anchor="center")
+    status_label.place(relx=0.5, rely=0.90, anchor="center")
+
+    # Activates user loading after all referenced page controls have been created
+    user_combobox.configure(command=handle_user_selection)
