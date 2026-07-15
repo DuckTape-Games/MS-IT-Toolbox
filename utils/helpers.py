@@ -7,8 +7,9 @@ Helper methods for M+S IT Acquisition Toolbox
 ###############
 
 import sys  # Detects PyInstaller's temporary resource folder
-from datetime import datetime  # Parses timestamps from generated backup folders
 from pathlib import Path  # Provides Windows user and folder path handling
+
+from utils import backup_metadata  # Shares backup identity validation
 
 
 ##############################################
@@ -106,14 +107,10 @@ def get_windows_users():
 ####################################################
 
 def is_generated_copy_folder(folder_name, username):
-    """Checks whether a folder was created by the acquisition copy tool."""
-    # Builds the current copy-folder prefix for the selected user
-    current_prefix = f"MS {username} Copy "
-
-    # Supports both the current folder name and the older project folder name
-    return (
-        folder_name.startswith(current_prefix)
-        or folder_name.startswith("M+S Acquisition Copy ")
+    """Checks whether a folder has an exact generated-backup name."""
+    return backup_metadata.is_generated_backup_name(
+        folder_name,
+        username,
     )
 
 
@@ -121,53 +118,37 @@ def is_generated_copy_folder(folder_name, username):
 ### Finds the Most Recent User Backup Folder  ###
 #################################################
 
-def _get_backup_sort_time(backup_folder, username):
-    """Returns the timestamp used to compare generated backup folders."""
-    # Extracts the timestamp from the current generated-folder naming format
-    current_prefix = f"MS {username} Copy "
-    if backup_folder.name.startswith(current_prefix):
-        timestamp_text = backup_folder.name[len(current_prefix):]
-
-        try:
-            return datetime.strptime(
-                timestamp_text,
-                "%Y-%m-%d_%H-%M-%S",
-            ).timestamp()
-        except ValueError:
-            # Falls back to the folder's modified time for malformed older names
-            pass
-
-    # Uses modified time for older naming formats or folders without a valid timestamp
-    try:
-        return backup_folder.stat().st_mtime
-    except (FileNotFoundError, PermissionError, OSError):
-        return 0
-
-
 def find_most_recent_backup(username):
-    """Returns the newest backup generated inside the selected user profile."""
-    # Searches only inside the selected user's profile to avoid cross-user matches
+    """Returns the newest marker-validated backup for the selected user."""
     user_path = Path("C:/Users") / username
 
     try:
-        backup_folders = [
-            folder
-            for folder in user_path.iterdir()
-            if folder.is_dir()
-            and is_generated_copy_folder(folder.name, username)
-        ]
+        backup_folders = []
+
+        for folder in user_path.iterdir():
+            if not folder.is_dir():
+                continue
+
+            creation_time = backup_metadata.get_backup_creation_time(
+                folder,
+                username,
+                allowed_statuses={
+                    backup_metadata.BACKUP_STATUS_COMPLETED,
+                },
+            )
+
+            if creation_time is not None:
+                backup_folders.append((folder, creation_time))
     except (FileNotFoundError, PermissionError, OSError):
         return None
 
-    # Returns no result when the selected user has never received a backup
     if not backup_folders:
         return None
 
-    # Uses the generated timestamp when available, then folder modified time as fallback
     return max(
         backup_folders,
-        key=lambda folder: _get_backup_sort_time(folder, username),
-    )
+        key=lambda backup_item: backup_item[1],
+    )[0]
 
 
 ###############################################
@@ -211,7 +192,11 @@ def get_unique_extensions(username, folder_vars):
     selected_folder_names = [
         folder_name
         for folder_name, variable in folder_vars.items()
-        if variable.get()
+        if (
+            variable.get()
+            if hasattr(variable, "get")
+            else bool(variable)
+        )
     ]
 
     # Scans each selected top-level folder separately

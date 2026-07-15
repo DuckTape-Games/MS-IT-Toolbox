@@ -1,0 +1,91 @@
+<#
+Runs a Microsoft Defender custom file or folder scan and returns JSON results
+#>
+
+##################
+### Parameters ###
+##################
+
+param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$ScanPath
+)
+
+##################
+### Scan Setup ###
+##################
+
+$ErrorActionPreference = "Stop"
+$scanType = "Custom Scan"
+$scanPathValue = $ScanPath
+$scanStart = Get-Date
+
+################################
+### Validates Defender Status ###
+################################
+
+$statusBefore = Get-MpComputerStatus
+
+if (-not $statusBefore.AMServiceEnabled) {
+    throw "Microsoft Defender Antivirus service is not enabled."
+}
+
+if (-not $statusBefore.AntivirusEnabled) {
+    throw "Microsoft Defender Antivirus is not enabled."
+}
+
+################################
+### Validates the Scan Target ###
+################################
+
+if (-not (Test-Path -LiteralPath $ScanPath)) {
+    throw "The selected custom scan target does not exist: $ScanPath"
+}
+
+############################
+### Runs the Custom Scan  ###
+############################
+
+Start-MpScan -ScanType CustomScan -ScanPath $ScanPath
+
+$statusAfter = Get-MpComputerStatus
+
+$detections = @(
+    Get-MpThreatDetection |
+    Where-Object {
+        $_.InitialDetectionTime -ge $scanStart
+    } |
+    ForEach-Object {
+        $detection = $_
+        $threat = Get-MpThreat -ThreatID $detection.ThreatID |
+            Select-Object -First 1
+
+        [PSCustomObject]@{
+            ThreatID = $detection.ThreatID
+            ThreatName = $threat.ThreatName
+            SeverityID = $threat.SeverityID
+            CategoryID = $threat.CategoryID
+            IsActive = $threat.IsActive
+            DidThreatExecute = $threat.DidThreatExecute
+            InitialDetectionTime = $detection.InitialDetectionTime
+            LastThreatStatusChangeTime = $detection.LastThreatStatusChangeTime
+            Resources = @($detection.Resources)
+        }
+    }
+)
+
+$result = [PSCustomObject]@{
+    ScanType = $scanType
+    ScanPath = $scanPathValue
+    ScanStartTime = $scanStart
+    ScanEndTime = Get-Date
+    AntivirusEnabled = $statusAfter.AntivirusEnabled
+    RealTimeProtectionEnabled = $statusAfter.RealTimeProtectionEnabled
+    QuickScanStartTime = $statusAfter.QuickScanStartTime
+    QuickScanEndTime = $statusAfter.QuickScanEndTime
+    QuickScanAge = $statusAfter.QuickScanAge
+    Detections = $detections
+}
+
+$result | ConvertTo-Json -Depth 8 -Compress

@@ -12,7 +12,7 @@ from tkinter import messagebox  # Reports directory-opening errors
 
 import customtkinter as ctk  # Creates CustomTkinter home-page controls
 
-from ui import header, robocopy_ui  # Provides navigation and the Robocopy page
+from ui import defender_ui, header, robocopy_ui  # Provides navigation and app pages
 from ui.robocopy_components import create_link_control  # Creates the directory link
 from utils import helpers, theme  # Provides frame helpers and shared theme values
 
@@ -59,9 +59,17 @@ def create_home(body, head, back_button=None):
     if back_button is not None:
         back_button.destroy()
 
-    # Creates the button that opens the Robocopy workflow
-    robocopy_button = ctk.CTkButton(
+    # Holds the main application workflow buttons in one centered row
+    home_button_frame = ctk.CTkFrame(
         body,
+        fg_color="transparent",
+        corner_radius=0,
+    )
+    home_button_frame.pack(pady=(50, 10))
+
+    # Creates the button that opens the M+S File Copy workflow
+    robocopy_button = ctk.CTkButton(
+        home_button_frame,
         text="M+S File Copy",
         font=theme.font_button,
         text_color=theme.dark_blue,
@@ -71,14 +79,29 @@ def create_home(body, head, back_button=None):
         border_width=1,
         corner_radius=6,
         height=80,
-        width=140,
+        width=160,
         command=lambda: go_to_robocopy(body, head),
     )
+    robocopy_button.pack(side="left", padx=10)
 
-    # Keeps the Robocopy button in its main home-page position
-    robocopy_button.pack(pady=(50, 10))
+    # Creates the button that opens the future Microsoft Defender workflow
+    defender_button = ctk.CTkButton(
+        home_button_frame,
+        text="Microsoft Defender",
+        font=theme.font_button,
+        text_color=theme.dark_blue,
+        fg_color=theme.white,
+        hover_color="#E7ECF2",
+        border_color=theme.dark_blue,
+        border_width=1,
+        corner_radius=6,
+        height=80,
+        width=160,
+        command=lambda: go_to_defender(body, head),
+    )
+    defender_button.pack(side="left", padx=10)
 
-    # Keeps the Users directory link directly below the Robocopy button
+    # Keeps the Users directory link directly below the workflow buttons
     open_directory_link = create_link_control(
         body,
         "Open Users Directory",
@@ -95,6 +118,19 @@ def go_to_robocopy(body, head):
     """Opens the Robocopy page and adds home navigation."""
     # Replaces the home page with the Robocopy interface
     robocopy_ui.create_robocopy_page(body)
+
+    # Adds a back arrow to the header after leaving the home page
+    header.add_back_button(head, body, create_home)
+
+
+##########################################
+### Sends the User to Defender Page    ###
+##########################################
+
+def go_to_defender(body, head):
+    """Opens the Microsoft Defender page and adds home navigation."""
+    # Replaces the home page with the future Defender interface
+    defender_ui.create_defender_page(body)
 
     # Adds a back arrow to the header after leaving the home page
     header.add_back_button(head, body, create_home)
