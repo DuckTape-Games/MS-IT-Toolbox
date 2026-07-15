@@ -24,6 +24,7 @@ def run_copy(
     status_var,
     backup_type,
     incremental_destination,
+    save_chromium_bookmarks,
 ):
     """Validates the current choices and starts the Robocopy workflow."""
     # Gets the main application window for message-box ownership
@@ -41,11 +42,14 @@ def run_copy(
     # Collects the folders currently selected for copying
     selected_folders = get_selected_folders(folder_vars)
 
-    # Stops the copy when no source folders are selected
-    if not selected_folders:
+    # Requires at least one folder or the Chromium bookmark option
+    if not selected_folders and not save_chromium_bookmarks:
         messagebox.showwarning(
-            "No Folders Selected",
-            "Select at least one folder to copy.",
+            "Nothing Selected",
+            (
+                "Select at least one folder or enable Chromium bookmark "
+                "backup before starting."
+            ),
             parent=parent_window,
         )
         return
@@ -94,9 +98,11 @@ def run_copy(
             f"Backup type: {backup_type_name}\n"
             f"User: {selected_user}\n"
             f"Folders: {len(selected_folders)} selected\n"
+            f"Chromium bookmarks: "
+            f"{'Included' if save_chromium_bookmarks else 'Not included'}\n"
             f"Destination: {destination_summary}\n"
             f"Excluded file types: {len(excluded_extensions)}\n\n"
-            "Start Robocopy?"
+            "Start M+S File Copy?"
         ),
         parent=parent_window,
     )
@@ -117,6 +123,7 @@ def run_copy(
             excluded_extensions=excluded_extensions,
             backup_type=backup_type,
             incremental_destination=incremental_destination,
+            save_chromium_bookmarks=save_chromium_bookmarks,
         )
     except (FileNotFoundError, PermissionError, OSError, RuntimeError, ValueError) as error:
         # Displays errors caused by missing files, permissions, or Windows commands
@@ -128,14 +135,14 @@ def run_copy(
         )
         return
 
-    # Collects only the selected folders that Robocopy did not copy successfully
+    # Collects folder and bookmark failures separately for clear reporting
     failed_results = [
         folder_result
         for folder_result in result["results"]
         if not folder_result["success"]
     ]
+    bookmark_failures = result.get("bookmark_failures", [])
 
-    # Displays the destination and logs when every selected folder succeeds
     if result["success"]:
         status_var.set(f"{backup_type_name} completed successfully")
         messagebox.showinfo(
@@ -143,27 +150,57 @@ def run_copy(
             (
                 f"{backup_type_name} completed successfully.\n\n"
                 f"Destination: {result['destination']}\n"
+                f"Chromium bookmark files saved: "
+                f"{result.get('bookmark_files_copied', 0)}\n"
+                f"Importable bookmark HTML files created: "
+                f"{result.get('bookmark_html_files_created', 0)}\n"
                 f"Logs: {result['log_folder']}"
             ),
             parent=parent_window,
         )
         return
 
-    # Changes the status when one or more selected folders fail
     status_var.set(f"{backup_type_name} completed with errors")
+    error_sections = []
 
-    # Creates a readable comma-separated list of failed folder names
-    failed_names = ", ".join(
-        folder_result["folder"] for folder_result in failed_results
-    )
+    if failed_results:
+        failed_names = ", ".join(
+            folder_result["folder"] for folder_result in failed_results
+        )
+        error_sections.append(f"Failed folders: {failed_names}")
 
-    # Displays the failed folders and shared log location for troubleshooting
+    if save_chromium_bookmarks and not result.get("bookmarks_found", False):
+        error_sections.append(
+            "Chromium bookmarks: No supported bookmark files were found."
+        )
+
+    if bookmark_failures:
+        bookmark_messages = []
+        for bookmark_result in bookmark_failures:
+            browser_profile = (
+                f"{bookmark_result['browser']} / "
+                f"{bookmark_result['profile']}"
+            )
+            if bookmark_result.get("error"):
+                detail = bookmark_result["error"]
+            elif bookmark_result.get("html_error"):
+                detail = (
+                    "Original copied, but HTML conversion failed: "
+                    f"{bookmark_result['html_error']}"
+                )
+            else:
+                detail = "Bookmark backup did not complete."
+            bookmark_messages.append(f"{browser_profile}: {detail}")
+        error_sections.append(
+            "Bookmark failures:\n- " + "\n- ".join(bookmark_messages)
+        )
+
+    if not error_sections:
+        error_sections.append("The copy operation did not complete successfully.")
+
     messagebox.showwarning(
         "Copy Completed With Errors",
-        (
-            "One or more folders could not be copied successfully.\n\n"
-            f"Failed folders: {failed_names}\n"
-            f"Logs: {result['log_folder']}"
-        ),
+        "\n\n".join(error_sections)
+        + f"\n\nLogs: {result['log_folder']}",
         parent=parent_window,
     )

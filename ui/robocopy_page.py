@@ -41,6 +41,10 @@ def create_robocopy_page(body):
     folder_vars = {}
     extension_vars = {}
 
+    def invalidate_extension_scan():
+        """Clears extension exclusions after the user or folder choices change."""
+        extension_vars.clear()
+
     # Tracks whether the left panel is showing defaults or every folder
     folder_display_state = {}
 
@@ -52,6 +56,9 @@ def create_robocopy_page(body):
 
     # Stores the existing destination selected for an incremental backup
     incremental_destination_var = tk.StringVar(value="")
+
+    # Controls whether Chromium browser bookmarks are included in the backup
+    save_chromium_bookmarks_var = tk.BooleanVar(value=True)
 
     # Holds the user selector above all three lower sections
     user_select_frame = ctk.CTkFrame(
@@ -328,6 +335,7 @@ def create_robocopy_page(body):
     # Loads folders and refreshes the latest-backup match after a user change
     def handle_user_selection(selected_user):
         """Updates folder choices and incremental destination for a new user."""
+        invalidate_extension_scan()
         create_user_folder_checkboxes(
             selected_user,
             folder_checkbox_frame,
@@ -335,6 +343,7 @@ def create_robocopy_page(body):
             folder_vars,
             folder_display_state,
             more_folders_button,
+            invalidate_extension_scan,
         )
 
         # Re-detects the destination only while incremental mode is active
@@ -398,6 +407,21 @@ def create_robocopy_page(body):
     )
     selected_backup_label.place(relx=0.5, rely=0.36, anchor="center")
 
+    # Includes bookmarks from supported Chromium-based browsers in the backup
+    save_bookmarks_checkbox = ctk.CTkCheckBox(
+        middle_frame,
+        text="Save Chromium\nBookmarks",
+        variable=save_chromium_bookmarks_var,
+        font=theme.font_main,
+        text_color=theme.dark_blue,
+        fg_color=theme.primary_blue,
+        hover_color=theme.dark_blue,
+        border_color=theme.dark_blue,
+        checkbox_width=18,
+        checkbox_height=18,
+    )
+    save_bookmarks_checkbox.place(relx=0.5, rely=0.44, anchor="center")
+
     # Creates the scrollable subfolder area on the right
     subfolder_frame = ctk.CTkFrame(
         body,
@@ -419,6 +443,7 @@ def create_robocopy_page(body):
     subfolder_panel = SubfolderPanel(
         subfolder_frame,
         folder_vars,
+        selection_change_callback=invalidate_extension_scan,
     )
 
     # Adds group controls above the original top-level folder list
@@ -440,7 +465,11 @@ def create_robocopy_page(body):
         text_color=theme.primary_blue,
         cursor="hand2",
         font=theme.font_main,
-        command=lambda: set_checkbox_values(folder_vars, True),
+        command=lambda: (
+            set_checkbox_values(folder_vars, True),
+            invalidate_extension_scan(),
+            subfolder_panel.render(),
+        ),
     )
     select_all_folders.pack(side="left", padx=8)
 
@@ -455,7 +484,11 @@ def create_robocopy_page(body):
         text_color=theme.primary_blue,
         cursor="hand2",
         font=theme.font_main,
-        command=lambda: set_checkbox_values(folder_vars, False),
+        command=lambda: (
+            set_checkbox_values(folder_vars, False),
+            invalidate_extension_scan(),
+            subfolder_panel.render(),
+        ),
     )
     deselect_all_folders.pack(side="left", padx=8)
 
@@ -490,7 +523,7 @@ def create_robocopy_page(body):
             extension_vars,
         ),
     )
-    scan_extensions_button.place(relx=0.5, rely=0.50, anchor="center")
+    scan_extensions_button.place(relx=0.5, rely=0.57, anchor="center")
 
     # Starts the copy using the current user, folder, and extension choices
     run_copy_button = ctk.CTkButton(
@@ -509,9 +542,10 @@ def create_robocopy_page(body):
             status_var,
             backup_type_var.get(),
             incremental_destination_var.get(),
+            save_chromium_bookmarks_var.get(),
         ),
     )
-    run_copy_button.place(relx=0.5, rely=0.72, anchor="center")
+    run_copy_button.place(relx=0.5, rely=0.77, anchor="center")
 
     # Displays Ready, running, completed, or failed status text
     status_label = ctk.CTkLabel(
@@ -523,7 +557,7 @@ def create_robocopy_page(body):
         wraplength=220,
         justify="center",
     )
-    status_label.place(relx=0.5, rely=0.90, anchor="center")
+    status_label.place(relx=0.5, rely=0.92, anchor="center")
 
     # Activates user loading after all referenced page controls have been created
     user_combobox.configure(command=handle_user_selection)

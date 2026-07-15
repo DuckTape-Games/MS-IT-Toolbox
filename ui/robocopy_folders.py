@@ -145,11 +145,12 @@ def _handle_selection_change(folder_vars, relative_path):
 class SubfolderPanel:
     """Displays one top-level folder's expandable subfolder tree on the right."""
 
-    def __init__(self, parent, folder_vars):
+    def __init__(self, parent, folder_vars, selection_change_callback=None):
         """Builds the scrollable panel used for nested subfolders."""
         # Stores the outer frame and shared checkbox variables
         self.parent = parent
         self.folder_vars = folder_vars
+        self.selection_change_callback = selection_change_callback
 
         # Tracks the user, active top-level folder, and expanded relative paths
         self.username = ""
@@ -275,10 +276,30 @@ class SubfolderPanel:
 
         self._update_scroll_region()
 
+    def _root_button_exists(self):
+        """Returns True when the stored top-level expand button still exists."""
+        if self.active_root_button is None:
+            return False
+
+        try:
+            return bool(self.active_root_button.winfo_exists())
+        except tk.TclError:
+            return False
+
+    def prepare_for_root_button_rebuild(self):
+        """Drops a button reference before top-level rows are destroyed."""
+        self.active_root_button = None
+
+    def register_root_button(self, root_folder, expand_button):
+        """Connects a rebuilt top-level button to the active subfolder branch."""
+        if self.root_folder == root_folder:
+            self.active_root_button = expand_button
+            expand_button.configure(text="−")
+
     def reset(self):
         """Clears the currently displayed subfolder branch."""
         # Restores the previous top-level expand button before clearing the panel
-        if self.active_root_button is not None:
+        if self._root_button_exists():
             self.active_root_button.configure(text="+")
 
         self.active_root_button = None
@@ -324,7 +345,7 @@ class SubfolderPanel:
             return
 
         # Restores the previously active top-level button before switching folders
-        if self.active_root_button is not None:
+        if self._root_button_exists():
             self.active_root_button.configure(text="+")
 
         # Marks the newly selected top-level folder as expanded
@@ -347,6 +368,8 @@ class SubfolderPanel:
     def _on_selection_changed(self, relative_path):
         """Applies parent and child selection rules to one subfolder."""
         _handle_selection_change(self.folder_vars, relative_path)
+        if self.selection_change_callback is not None:
+            self.selection_change_callback()
         self.render()
 
     def _add_row(self, relative_path, depth, row_number):
@@ -518,8 +541,12 @@ def _render_top_level_folders(
     subfolder_panel,
     folder_vars,
     folder_display_state,
+    selection_change_callback=None,
 ):
     """Draws the currently visible top-level folder rows."""
+    # Drops references to buttons that are about to be destroyed
+    subfolder_panel.prepare_for_root_button_rebuild()
+
     # Removes only the visible folder widgets while preserving checkbox values
     helpers.clear_frame(folder_frame)
 
@@ -573,6 +600,7 @@ def _render_top_level_folders(
             )
         )
         expand_button.pack(side="left", padx=(0, 4))
+        subfolder_panel.register_root_button(folder_name, expand_button)
 
         # Selects the complete top-level folder
         checkbox = ctk.CTkCheckBox(
@@ -593,6 +621,9 @@ def _render_top_level_folders(
                 ),
                 subfolder_panel.render()
                 if subfolder_panel.root_folder == path
+                else None,
+                selection_change_callback()
+                if selection_change_callback is not None
                 else None,
             ),
         )
@@ -617,6 +648,7 @@ def toggle_additional_folders(
     folder_vars,
     folder_display_state,
     more_folders_button,
+    selection_change_callback=None,
 ):
     """Switches between the default-only and complete folder lists."""
     # Does nothing until a valid user profile has been loaded
@@ -645,6 +677,7 @@ def toggle_additional_folders(
         subfolder_panel,
         folder_vars,
         folder_display_state,
+        selection_change_callback,
     )
 
 
@@ -655,6 +688,7 @@ def create_user_folder_checkboxes(
     folder_vars,
     folder_display_state,
     more_folders_button,
+    selection_change_callback=None,
 ):
     """Loads a user's folders and initially displays only the four defaults."""
     # Removes the previous user's widgets, variables, and subfolder branch
@@ -695,6 +729,7 @@ def create_user_folder_checkboxes(
             folder_vars,
             folder_display_state,
             more_folders_button,
+            selection_change_callback,
         ),
     )
 
@@ -705,6 +740,7 @@ def create_user_folder_checkboxes(
         subfolder_panel,
         folder_vars,
         folder_display_state,
+        selection_change_callback,
     )
 
 
