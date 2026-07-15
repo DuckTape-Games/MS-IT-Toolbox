@@ -8,7 +8,7 @@ set "COPY_SUBDIRECTORIES=/S /XJ"
 set "COPY_METADATA=/COPY:DAT /DCOPY:T"
 set "RETRY_COUNT=3"
 set "WAIT_SECONDS=10"
-set "LOG_OPTIONS=/V /FP /NP"
+set "LOG_OPTIONS=/V /FP /NP /TEE /NFL /NDL"
 
 rem Required values from Python
 set "JOB_FILE=%~1"
@@ -77,34 +77,35 @@ goto show_result
 :copy_folder
 set /a CURRENT_FOLDER+=1
 set "JOB_INDEX=%CURRENT_FOLDER%"
+set "LOCAL_EXIT_CODE=0"
+set "SUBFOLDER_FOUND=0"
 
 echo [%CURRENT_FOLDER%/%TOTAL_FOLDERS%] Copying selected folder...
-echo     Source and destination are recorded in the combined log.
+echo     Main folder: "%COPY_FOLDER_NAME%"
 echo.
 
-if "%CURRENT_FOLDER%"=="1" goto first_log
+rem Copies files located directly inside the selected main folder first.
+echo     [Root files]
+set "RUN_SOURCE=%COPY_SOURCE%"
+set "RUN_DESTINATION=%COPY_DESTINATION%"
+set "RUN_RECURSIVE_OPTIONS=/XJ"
+call :run_robocopy_section
 
-goto append_log
+rem Copies each immediate subfolder recursively and displays only its name.
+for /d %%D in ("%COPY_SOURCE%\*") do (
+    set "SUBFOLDER_FOUND=1"
+    set "RUN_SOURCE=%%~fD"
+    set "RUN_DESTINATION=%COPY_DESTINATION%\%%~nxD"
+    set "RUN_RECURSIVE_OPTIONS=/S /XJ"
+    set "CURRENT_SUBFOLDER=%%~nxD"
+    call :copy_immediate_subfolder
+)
 
-:first_log
-if defined EXCLUSION_ARGS goto first_log_with_exclusions
-robocopy "%COPY_SOURCE%" "%COPY_DESTINATION%" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%"
-goto copy_finished
+if "%SUBFOLDER_FOUND%"=="0" (
+    echo     No immediate subfolders found.
+    echo.
+)
 
-:first_log_with_exclusions
-robocopy "%COPY_SOURCE%" "%COPY_DESTINATION%" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%" /XF %EXCLUSION_ARGS%
-goto copy_finished
-
-:append_log
-if defined EXCLUSION_ARGS goto append_log_with_exclusions
-robocopy "%COPY_SOURCE%" "%COPY_DESTINATION%" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%"
-goto copy_finished
-
-:append_log_with_exclusions
-robocopy "%COPY_SOURCE%" "%COPY_DESTINATION%" %COPY_SUBDIRECTORIES% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%" /XF %EXCLUSION_ARGS%
-
-:copy_finished
-set "LOCAL_EXIT_CODE=%ERRORLEVEL%"
 >> "%RESULT_FILE%" echo(%JOB_INDEX%^|%LOCAL_EXIT_CODE%
 
 if %LOCAL_EXIT_CODE% LSS 8 (
@@ -116,6 +117,38 @@ echo ---------------------------------------------------------------
 echo.
 
 if %LOCAL_EXIT_CODE% GTR %OVERALL_EXIT_CODE% set "OVERALL_EXIT_CODE=%LOCAL_EXIT_CODE%"
+exit /b 0
+
+:copy_immediate_subfolder
+echo     [Subfolder] %CURRENT_SUBFOLDER%
+call :run_robocopy_section
+echo.
+exit /b 0
+
+:run_robocopy_section
+rem The first Robocopy call creates the combined log; later calls append to it.
+if defined LOG_INITIALIZED goto append_section_log
+
+set "LOG_INITIALIZED=1"
+if defined EXCLUSION_ARGS goto first_section_with_exclusions
+robocopy "%RUN_SOURCE%" "%RUN_DESTINATION%" %RUN_RECURSIVE_OPTIONS% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%"
+goto section_finished
+
+:first_section_with_exclusions
+robocopy "%RUN_SOURCE%" "%RUN_DESTINATION%" %RUN_RECURSIVE_OPTIONS% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG:"%COMBINED_LOG_FILE%" /XF %EXCLUSION_ARGS%
+goto section_finished
+
+:append_section_log
+if defined EXCLUSION_ARGS goto append_section_with_exclusions
+robocopy "%RUN_SOURCE%" "%RUN_DESTINATION%" %RUN_RECURSIVE_OPTIONS% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%"
+goto section_finished
+
+:append_section_with_exclusions
+robocopy "%RUN_SOURCE%" "%RUN_DESTINATION%" %RUN_RECURSIVE_OPTIONS% %COPY_METADATA% /R:%RETRY_COUNT% /W:%WAIT_SECONDS% %LOG_OPTIONS% /LOG+:"%COMBINED_LOG_FILE%" /XF %EXCLUSION_ARGS%
+
+:section_finished
+set "SECTION_EXIT_CODE=%ERRORLEVEL%"
+if %SECTION_EXIT_CODE% GTR %LOCAL_EXIT_CODE% set "LOCAL_EXIT_CODE=%SECTION_EXIT_CODE%"
 exit /b 0
 
 :show_result
